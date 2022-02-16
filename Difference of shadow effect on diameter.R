@@ -1,9 +1,13 @@
 #This is to know the shadow ratio in tanks of different diamters
 library(REdaS)
-Latitude<-c(25,35,45)         #latitude
+Lat<-c(25,35,45)         #latitude
 Htank<-5                      #height of tank
 M.depth<-3                    #fixed manure depth
 ri<-c(5,10,20,30,40)          #Inner radius of tank, m, B32
+Eb<-1395                      #extraterrestrial solar flux density, W m-2
+tau<-0.75                     #Atmospheric transimttance, 0.75 clear, 0.4 overcast
+A<-7.3                        #altitude, m
+Pa<-101325*exp(-A/8200)                     # Local air pressure, Pa
 T.day.light<-matrix(1:365*5,nrow=365,ncol=5,byrow = T)#save the max light.d
 data<-list()
 #Preparation for heat transfer calculation
@@ -36,10 +40,12 @@ shadow<-pi*ri[i]^2-(4*pi*ri[i]^2*deg.theta/(2*pi)
 light.d<-1-(shadow/Au)                                # the percentage that sunlight on the surface, between 0-1
 light.d[is.nan(light.d)]<-0
 ###End for shadow calculation
-Sb<-ifelse(sin.alpha>0, Eb*(tau^m)*sin.alpha,0)       # solar bean radiation (W/m2),F104-KG104
-
+m<-ifelse(sin.alpha>0,Pa/(101325*sin.alpha),0)       # Optical air mass number, #F103-KG103
+Sb<-ifelse(sin.alpha>0, Eb*(tau^m)*sin.alpha,0)      # solar bean radiation (W/m2),F104-KG104
+Sd<-ifelse(sin.alpha>0,0.3*(1-tau^m)*Eb*sin.alpha,0) # Diffusive radiation (w/m2),F105-KG105
 cat(c(i,j,max(light.d)))
-T.day.light[j,i]<-sum(light.d[light.d!=0])
+q.net<-light.d*(Sb+Sd)
+T.day.light[j,i]<-mean(q.net)#[light.d!=0])
 data[[k]]<-T.day.light
 }
 }
@@ -49,14 +55,17 @@ par(mfrow=c(1,3))
 for (k in 1:3){
 cols<-c("#a6bddb","#74a9cf","#3690c0",
         "#0570b0","#034e7b")
-plot(data[[k]][,5],type="l",col=cols[5],
-     xlab="Day of year",ylab="Percentage of light to the surface")
+plot(data[[k]][,5],type="l",col=cols[5],ylim=c(0,400),
+     xlab="Day of year",
+     ylab=expression(paste("Total radiation on manure surface (W ",m^2,")"))
+     )
+ifelse(k==1,legend(50,100,rev(c("5m","10m","20m","30m","40m")),
+                   col=rev(cols),lty=1,
+                   title="Tank radius",bty="n"),NA)
 for (i in 1:4) {
 lines(data[[k]][,i],col=cols[i])
 }
-legend(50,0.5,c("5m","10m","20m","30m","40m"),col=cols,lty=1,
-       title="tank radius")
 mtext(paste("Latitude=",Lat[k],sep=""),side=3,line =1)
 }
 
-A<-111
+
